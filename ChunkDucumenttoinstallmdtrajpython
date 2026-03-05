@@ -1,0 +1,10 @@
+run command on system 
+
+
+sudo apt install python3-pip
+sudo pip3 install flask mdtraj numpy --break-system-packages
+pip install flask mdtraj numpy
+pip install -r requirements.txt
+
+to execute sript
+python3 trajectory_service.py
