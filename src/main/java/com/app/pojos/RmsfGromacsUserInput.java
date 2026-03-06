@@ -16,7 +16,7 @@ public class RmsfGromacsUserInput {
 	private String trajectoryFileName;
 	@NotBlank(message = "output fileName can't be blank")
 	private String outputfileName;
-	@NotBlank(message = "Index fileName can't be blank")
+//	@NotBlank(message = "Index fileName can't be blank")
 	private String indexFileName;
 	private int grouplsfit;
 	@Min(value = 1, message = "first Frame number must have > 1")

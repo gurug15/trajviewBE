@@ -22,98 +22,117 @@ import lombok.extern.slf4j.Slf4j;
 @Service
 @Slf4j
 public class FilesStorageServiceImpl implements IFilesStorageServiceImpl {
-//	@Value("${file.upload.location}")
-//	private String uploadLocation;
 
-	@Autowired
-	UserRepository userRepository;
-//	
+    @Autowired
+    private UserRepository userRepository;
 
-	// use only to get or display output files on frontend
-//	private final Path outputdirPath = Paths.get("analysis/rmsdGromacs/ouputFiles");
-//	@Autowired
-//    private HttpSession session;
-//	@Value("${variables.fileStoreDirPath}")
-//	String fileStoreDirPath;
-//
-//	
-//	@Value("${variables.outputdir}")
-//	String outputdir;
-//	
-//	private final Path fileStorePath = Paths.get(fileStoreDirPath);
-//	private final Path outputdirPath = Paths.get(outputdir);
+    @Override
+    public void init() {
+        try {
+            log.debug("in init folder create");
+            // Directory creation is now handled per-user in save() method
+        } catch (Exception e) {
+            throw new RuntimeException("Could not initialize folder for upload!");
+        }
+    }
 
-	@Override
-	public void init() {
-		try {
-			log.debug("in init folder create");
+    @Override
+    public String save(MultipartFile file, String userName) {
+        try {
+            User user = userRepository.findByEmail(userName)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
 
-//			Files.createDirectory(fileStorePath);
-//			Files.createDirectory(outputdirPath);
+            log.info("Saving file for user: {}", userName);
+            
+            // Get input file path
+            Path inputDirPath = Paths.get(user.getInputfilePath()).toAbsolutePath();
+            
+            // Create directory if it doesn't exist
+            if (!Files.exists(inputDirPath)) {
+                Files.createDirectories(inputDirPath);
+                log.info("Created directory: {}", inputDirPath);
+            }
+            
+            // Validate filename to prevent path traversal
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.trim().isEmpty()) {
+                throw new RuntimeException("Invalid filename");
+            }
+            
+            if (originalFilename.contains("..") || originalFilename.contains("/") || originalFilename.contains("\\")) {
+                throw new RuntimeException("Invalid filename: path traversal detected");
+            }
+            
+            // Resolve file path
+            Path filePath = inputDirPath.resolve(originalFilename);
+            
+            // Save file
+            file.transferTo(filePath);
+            
+            log.info("File saved successfully: {}", filePath);
+            
+            return filePath.toString();
+            
+        } catch (Exception e) {
+            log.error("Error saving file: {}", e.getMessage());
+            throw new RuntimeException("Could not store the file. Error: " + e.getMessage());
+        }
+    }
 
-		} catch (Exception e) {
-			throw new RuntimeException("Could not initialize folder for upload!");
-		}
-	}
+    @Override
+    public Resource load(String analysisName, String fileName, String userName) {
+        try {
+            User user = userRepository.findByEmail(userName)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            // Path for output files: analysis/{email}/{analysisName}/{fileName}
+            Path file = Paths.get("analysis/" + user.getEmail() + analysisName).resolve(fileName);
+            
+            log.info("Loading file: {}", file);
+            
+            Resource resource = new UrlResource(file.toUri());
+            
+            if (resource.exists() || resource.isReadable()) {
+                return resource;
+            } else {
+                throw new RuntimeException("Could not read the file!");
+            }
+        } catch (MalformedURLException e) {
+            throw new RuntimeException("Error: " + e.getMessage());
+        }
+    }
 
-	@Override
-	public String save(MultipartFile file, String userName) {
+    @Override
+    public void deleteAll() {
+        // This is dangerous - consider removing or making it admin-only
+        log.warn("deleteAll() called - this will delete all files!");
+        // Keeping original implementation but adding warning
+        Path fileStorePath = Paths.get("analysis/nik@gmail.com/gromacs/inputfiles");
+        FileSystemUtils.deleteRecursively(fileStorePath.toFile());
+    }
 
-		try {
-			User user = userRepository.findByEmail(userName).orElseThrow(() -> new RuntimeException("User not Found"));
-//	        session.setAttribute("outputdir", user.getOutputDirPath() + "/gromacs/rmsd/");
-
-			System.out.println("in fileStorageservice Save method");
-
-			String filepath = (Paths.get(user.getInputfilePath()).resolve(file.getOriginalFilename())).toString();
-
-			// java.io.File destinationPath= new java.io.File(filepath);
-			file.transferTo(Paths.get(user.getInputfilePath()).resolve(file.getOriginalFilename()));
-
-			return filepath;
-
-		} catch (Exception e) {
-			throw new RuntimeException("Could not store the file. Error: " + e.getMessage());
-		}
-	}
-
-	@Override
-	public Resource load(String analysisName,String fileName,String userName) {
-//		System.out.println("analysisName::" + analysisName);
-//analysisName= /gromacs/rmsd,/gromacs/rmsf etc...
-		try {
-			User user = userRepository.findByEmail(userName).orElseThrow(() -> new RuntimeException("User not Found"));
-
-			Path file = Paths.get("analysis/"+user.getEmail() +analysisName).resolve(fileName);
-			System.out.println("File::" + file);
-			Resource resource = new UrlResource(file.toUri());
-			if (resource.exists() || resource.isReadable()) {
-				return resource;
-			} else {
-				throw new RuntimeException("Could not read the file!");
-			}
-		} catch (MalformedURLException e) {
-			throw new RuntimeException("Error: " + e.getMessage());
-		}
-	}
-
-	@Override
-	public void deleteAll() {
-		Path fileStorePath = Paths.get("analysis/nik@gmail.com/gromacs/inputfiles");
-		FileSystemUtils.deleteRecursively(fileStorePath.toFile());
-	}
-
-	@Override
-	public Stream<Path> loadAll(String analysisName,String userName) {
-		try {
-			
-			User user = userRepository.findByEmail(userName).orElseThrow(() -> new RuntimeException("User not Found"));
-			Path outputdirPath = Paths.get("analysis/"+user.getEmail()+analysisName);
-			System.out.println("outputdirPath::" + outputdirPath);
-			return Files.walk(outputdirPath, 1).filter(path -> !path.equals(outputdirPath))
-					.map(outputdirPath::relativize);
-		} catch (IOException e) {
-			throw new RuntimeException("Could not load the files!");
-		}
-	}
+    @Override
+    public Stream<Path> loadAll(String analysisName, String userName) {
+        try {
+            User user = userRepository.findByEmail(userName)
+                    .orElseThrow(() -> new RuntimeException("User not found"));
+            
+            Path outputdirPath = Paths.get("analysis/" + user.getEmail() + analysisName);
+            
+            log.info("Loading all files from: {}", outputdirPath);
+            
+            // Create directory if it doesn't exist
+            if (!Files.exists(outputdirPath)) {
+                Files.createDirectories(outputdirPath);
+                return Stream.empty();
+            }
+            
+            return Files.walk(outputdirPath, 1)
+                    .filter(path -> !path.equals(outputdirPath))
+                    .map(outputdirPath::relativize);
+                    
+        } catch (IOException e) {
+            throw new RuntimeException("Could not load the files!");
+        }
+    }
 }

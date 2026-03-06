@@ -14,7 +14,7 @@ public class RmsdGromacsUserInput {
 	private String topologyFileName;
 	@NotBlank(message = "trajectory fileName can't be blank")
 	private String trajectoryFileName;
-	@NotBlank(message = "Index fileName can't be blank")
+//	@NotBlank(message = "Index fileName can't be blank")
 	private String indexFileName;
 	@NotBlank(message = "output fileName can't be blank")
 	private String outputfileName;

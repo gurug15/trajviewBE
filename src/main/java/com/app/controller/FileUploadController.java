@@ -1,16 +1,17 @@
 package com.app.controller;
 
+import java.io.IOException;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import com.app.service.IFetchIndexFileDataService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
@@ -19,104 +20,206 @@ import org.springframework.web.servlet.mvc.method.annotation.MvcUriComponentsBui
 
 import com.app.message.ResponseMessage;
 import com.app.pojos.FileInfo;
+import com.app.service.IFetchIndexFileDataService;
+import com.app.service.IFileReaderService;
 import com.app.service.IFilesStorageServiceImpl;
 
 import jakarta.validation.Valid;
 
 @RestController
-//@CrossOrigin(origins = "*", allowedHeaders = "*")
 @RequestMapping("/fileUpload")
-@Validated // To enable : validation err handling on request params or path variables
-
+@Validated
 public class FileUploadController {
-	@Autowired
-	IFilesStorageServiceImpl storageService;
+    
+    @Autowired
+    private IFilesStorageServiceImpl storageService;
 
-	@Autowired
-	IFetchIndexFileDataService iFetchIndexFileData;
+    @Autowired
+    private IFetchIndexFileDataService iFetchIndexFileData;
+    
+    @Autowired
+    private IFileReaderService fileReaderService;
 
-	public FileUploadController() {
-		System.out.println("in Constructor of " + getClass().getName());
-	}
-	// HttpSession session ;
+    public FileUploadController() {
+        System.out.println("in Constructor of " + getClass().getName());
+    }
 
-	// Multiple Files upload
+    /**
+     * POST /fileUpload/inputfiles
+     * Upload single file (topology, trajectory, or index)
+     */
+    @PostMapping("/inputfiles")
+    public ResponseEntity<?> uploadSingleFile(
+            @RequestParam("file") @Valid MultipartFile file,
+            Principal principal) {
+        
+        System.out.println("in fileuploadController - Single File upload");
+        
+        try {
+            // Validate file
+            if (file.isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseMessage("File is empty"));
+            }
+            
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseMessage("Invalid filename"));
+            }
+            
+            // Optional: Validate file extensions
+            String lowerFilename = originalFilename.toLowerCase();
+            if (!lowerFilename.endsWith(".pdb") && 
+                !lowerFilename.endsWith(".gro") && 
+                !lowerFilename.endsWith(".xtc") && 
+                !lowerFilename.endsWith(".ndx")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ResponseMessage("Invalid file type. Only .pdb, .gro, .xtc, .ndx files are allowed"));
+            }
+            
+            // Save file
+            String filenameWithPath = storageService.save(file, principal.getName());
+            
+            System.out.println("File saved at: " + filenameWithPath);
+            
+            String message = "Uploaded the file successfully: " + originalFilename;
+            
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseMessage(message));
+                    
+        } catch (Exception e) {
+            e.printStackTrace();
+            String message = "Could not upload the file: " + file.getOriginalFilename();
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(new ResponseMessage(message + " - Error: " + e.getMessage()));
+        }
+    }
 
-	@PostMapping("/uploadMultipleFiles")
-	public ResponseEntity<?> uploadFiles(@RequestParam("files") @Valid MultipartFile[] files,Principal principal) {
-		System.out.println("in fileuploadController- Multiple Files upload ");
-		String message = "";
-		try {
-//			storageService.deleteAll();
-//			storageService.init();
+    /**
+     * POST /fileUpload/uploadMultipleFiles
+     * Upload multiple files at once
+     */
+    @PostMapping("/uploadMultipleFiles")
+    public ResponseEntity<?> uploadFiles(
+            @RequestParam("files") @Valid MultipartFile[] files,
+            Principal principal) {
+        
+        System.out.println("in fileuploadController - Multiple Files upload");
+        
+        try {
+            ArrayList<String> fileNames = new ArrayList<>();
+            ArrayList<String> failedFiles = new ArrayList<>();
+            
+            Arrays.asList(files).forEach(file -> {
+                try {
+                    storageService.save(file, principal.getName());
+                    fileNames.add(file.getOriginalFilename());
+                } catch (Exception e) {
+                    failedFiles.add(file.getOriginalFilename());
+                    System.err.println("Failed to upload: " + file.getOriginalFilename());
+                }
+            });
 
-//			String[] fileNames = new String[2];
-			ArrayList<String> fileNames = new ArrayList<>();
-			Arrays.asList(files).stream().forEach(file -> {
-				storageService.save(file,principal.getName());
-				fileNames.add(file.getOriginalFilename());
+            System.out.println("Uploaded files: " + fileNames);
+            
+            if (!failedFiles.isEmpty()) {
+                System.out.println("Failed files: " + failedFiles);
+            }
 
-			});
+            String message = "Uploaded " + fileNames.size() + " file(s) successfully";
+            if (!failedFiles.isEmpty()) {
+                message += ". Failed: " + failedFiles.size();
+            }
 
-			System.out.println(fileNames);
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseMessage(message));
 
-			message = "Uploaded the files successfully: " + fileNames;
+        } catch (Exception e) {
+            String message = "Fail to upload files!";
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(new ResponseMessage(message));
+        }
+    }
 
-			return ResponseEntity.status(HttpStatus.OK)
-					.body(new Object[] { new ResponseMessage(fileNames.toString()) });
+    /**
+     * POST /fileUpload/uploadIndexFile
+     * Upload index file with special processing
+     */
+    @PostMapping("/uploadIndexFile")
+    public ResponseEntity<?> uploadIndexFile(
+            @RequestParam("file") MultipartFile file,
+            Principal principal) {
+        
+        try {
+            String filenameWithPath = storageService.save(file, principal.getName());
+            System.out.println("Index file saved at: " + filenameWithPath);
 
-		} catch (Exception e) {
-			message = "Fail to upload files!";
-			return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
-		}
-	}
+            String message = "Uploaded the file successfully: " + file.getOriginalFilename();
+            System.out.println("Filename: " + file.getOriginalFilename());
+            
+            // Process index file data
+            int analysisWindowNumber = 0;
+            iFetchIndexFileData.fetchIndexDataGromacs(
+                    file.getOriginalFilename(), 
+                    principal.getName(), 
+                    analysisWindowNumber);
+            
+            return ResponseEntity.status(HttpStatus.OK)
+                    .body(new ResponseMessage(filenameWithPath));
 
-	@PostMapping("/uploadIndexFile")
-	public ResponseEntity<?> uploadFile(@RequestParam("file") MultipartFile file,Principal principal) {
-		String message = "";
-		try {
-//			if (file.getOriginalFilename().contains(".sh")) {
-//			storageService.deleteAll();
-//			storageService.init();
-//			}
+        } catch (Exception e) {
+            String message = "Could not upload the file: " + file.getOriginalFilename() + "!";
+            return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED)
+                    .body(new ResponseMessage(message));
+        }
+    }
 
-			String filenameWithPath = storageService.save(file,principal.getName());
-			System.out.println("in controller filenameWithPath ::" + filenameWithPath);
+    /**
+     * POST /fileUpload/files
+     * Get list of output files for a specific analysis
+     */
+    @PostMapping("/files")
+    public ResponseEntity<List<FileInfo>> getListFiles(
+            @RequestBody String analysisName, 
+            Principal principal) {
+        
+        // analysisName = /gromacs/rmsd, /gromacs/rmsf etc...
+        List<FileInfo> fileInfos = storageService.loadAll(analysisName, principal.getName())
+                .map(path -> {
+                    String filename = path.getFileName().toString();
+                    String url = MvcUriComponentsBuilder
+                            .fromMethodName(FileUploadController.class, 
+                                    "getFile", 
+                                    analysisName, 
+                                    path.getFileName().toString(), 
+                                    principal.getName())
+                            .build()
+                            .toString();
+                    return new FileInfo(filename, url);
+                })
+                .collect(Collectors.toList());
 
-			message = "Uploaded the file successfully: " + file.getOriginalFilename();
-			System.out.println("Filename::"+file.getOriginalFilename());
-			int analysisWindowNumber=0;
-			iFetchIndexFileData.fetchIndexDataGromacs(file.getOriginalFilename(),principal.getName(),analysisWindowNumber);
-			return ResponseEntity.status(HttpStatus.OK).body(new Object[] { new ResponseMessage(filenameWithPath) });
+        return ResponseEntity.status(HttpStatus.OK).body(fileInfos);
+    }
 
-		} catch (Exception e) {
-			message = "Could not upload the file: " + file.getOriginalFilename() + "!";
-			return ResponseEntity.status(HttpStatus.EXPECTATION_FAILED).body(new ResponseMessage(message));
-		}
-	}
-
-	@PostMapping("/files")
-	public ResponseEntity<List<FileInfo>> getListFiles(@RequestBody String analysisName, Principal principal) {
-		//analysisName= /gromacs/rmsd, /gromacs/rmsf etc...
-		List<FileInfo> fileInfos = storageService.loadAll(analysisName, principal.getName()).map(path -> {
-			String filename = path.getFileName().toString();
-//internally calling 	@GetMapping("/files/{filename:.+}")
-			String url = MvcUriComponentsBuilder
-					.fromMethodName(FileUploadController.class, "getFile",analysisName, path.getFileName().toString(),principal.getName()).build()
-					.toString();
-			return new FileInfo(filename, url);
-		}).collect(Collectors.toList());
-
-		return ResponseEntity.status(HttpStatus.OK).body(fileInfos);
-	}
-
-	@GetMapping("/files/{filename:.+}")
-	@ResponseBody
-	public ResponseEntity<Resource> getFile(String analysisName,@PathVariable String filename,String userName) {
-		Resource file = storageService.load(analysisName,filename,userName);
-		System.out.println("in get files::  " + filename);
-		return ResponseEntity.ok()
-				.header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + file.getFilename() + "\"")
-				.body(file);
-	}
+    /**
+     * GET /fileUpload/files/{filename}
+     * Download output file
+     */
+    @GetMapping("/files/{filename:.+}")
+    @ResponseBody
+    public ResponseEntity<Resource> getFile(
+            String analysisName,
+            @PathVariable String filename,
+            String userName) {
+        
+        Resource file = storageService.load(analysisName, filename, userName);
+        System.out.println("Downloading file: " + filename);
+        
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, 
+                        "attachment; filename=\"" + file.getFilename() + "\"")
+                .body(file);
+    }
 }

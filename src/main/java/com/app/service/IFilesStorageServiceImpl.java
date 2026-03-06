@@ -8,19 +8,23 @@ import org.springframework.web.multipart.MultipartFile;
 
 public interface IFilesStorageServiceImpl {
 	
-	public void init();
-
-	public String save(MultipartFile file,String userName);
-
-	public Resource load(String analysisName,String fileName,String userName);
-
-	public void deleteAll();
-	
-//	public String getInputFilepath() ;
-
-	public Stream<Path> loadAll(String analysisName,String userName);
-	
-	//public String getInputFilelocationPath() ;
-
+	 void init();
+	    
+	    /**
+	     * Save uploaded file to user's input directory
+	     */
+	    String save(MultipartFile file, String userName);
+	    
+	    /**
+	     * Load a file from user's output directory (for analysis results)
+	     */
+	    Resource load(String analysisName, String fileName, String userName);
+	    
+	    /**
+	     * Load all files from user's output directory
+	     */
+	    Stream<Path> loadAll(String analysisName, String userName);
+	    
+	    void deleteAll();
 	
 }

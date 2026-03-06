@@ -32,14 +32,15 @@ public class SecurityConfig {
 
 	@Autowired
 	private PasswordEncoder passwordEncoder;
-	
 
 	@Bean
 	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 		// we can apply hasRole for authenticated or permitAll() like .hasRole("ADMIN")
 		http.csrf(csrf -> csrf.disable()).cors(cors -> cors.configurationSource(corsConfigurationSource()))
-				.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/login").permitAll().requestMatchers("/auth/create-user").permitAll()
+				.authorizeHttpRequests(auth -> auth.requestMatchers("/auth/login").permitAll()
+						.requestMatchers("/auth/create-user").permitAll()
 						.requestMatchers(HttpMethod.GET, "/fileUpload/files/**").permitAll()
+						.requestMatchers(HttpMethod.GET, "/analysis/download/**").permitAll()
 						.requestMatchers("/api/**").permitAll().anyRequest().authenticated())
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(point))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
@@ -54,16 +55,16 @@ public class SecurityConfig {
 		provider.setPasswordEncoder(passwordEncoder);
 		return provider;
 	}
-	
+
 	@Bean
 	CorsConfigurationSource corsConfigurationSource() {
-	    CorsConfiguration configuration = new CorsConfiguration();
-	    configuration.setAllowedOrigins(Arrays.asList("*"));
-	    configuration.setAllowedMethods(Arrays.asList("*"));
-	    configuration.setAllowedHeaders(Arrays.asList("*"));
-	    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-	    source.registerCorsConfiguration("/**", configuration);
-	    return source;
+		CorsConfiguration configuration = new CorsConfiguration();
+		configuration.setAllowedOrigins(Arrays.asList("*"));
+		configuration.setAllowedMethods(Arrays.asList("*"));
+		configuration.setAllowedHeaders(Arrays.asList("*"));
+		UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+		source.registerCorsConfiguration("/**", configuration);
+		return source;
 	}
 
 }
