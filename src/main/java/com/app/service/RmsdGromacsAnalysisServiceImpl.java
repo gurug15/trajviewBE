@@ -63,45 +63,34 @@ public class RmsdGromacsAnalysisServiceImpl implements IRmsdGromacsAnalysisServi
 //	private final Path analysisOutputDir = Paths.get(analysisOutputDirPath);
 	@Override
 	public List<Double[]> writeRmsdAnalysisScript(RmsdGromacsUserInput rmsdGromacsUserInput, String username, int analysisWindowNumber) throws IOException {
-	    User user = userRepository.findByEmail(username)
-	            .orElseThrow(() -> new RuntimeException("User not Found"));
+	    User user = userRepository.findByEmail(username).orElseThrow(() -> new RuntimeException("User not Found"));
 	    
 	    String gromacsrmsdScriptPath = user.getOutputDirPath() + "/gromacs/rmsd/rmsdGromacsScript" + (analysisWindowNumber + 1) + ".sh";
 	    Path inputDirPath = Paths.get(user.getInputfilePath()).toAbsolutePath();
 	    Path outputDirPath = Paths.get(user.getOutputDirPath()).toAbsolutePath();
 	    
-	    // Ensure output directory exists
 	    Files.createDirectories(Paths.get(user.getOutputDirPath() + "/gromacs/rmsd/"));
 	    
 	    try (FileWriter writer1 = new FileWriter(gromacsrmsdScriptPath);
 	            BufferedWriter buffer = new BufferedWriter(writer1)) {
 	        
-	        // Build GROMACS command
 	        StringBuilder cmd = new StringBuilder();
 	        cmd.append(gmxPath).append(" rms")
 	           .append(" -f ").append(inputDirPath).append("/").append(rmsdGromacsUserInput.getTrajectoryFileName())
-	           .append(" -s ").append(inputDirPath).append("/").append(rmsdGromacsUserInput.getTopologyFileName());
+	           .append(" -s ").append(inputDirPath).append("/").append(rmsdGromacsUserInput.getTopologyFileName())
+	           .append(" -o ").append(outputDirPath).append("/gromacs/rmsd/")
+	           .append(rmsdGromacsUserInput.getOutputfileName()).append(".xvg");
 	        
-	        // Optional: Index file
+	        if(rmsdGromacsUserInput.getFirstFrameno() > 1 && rmsdGromacsUserInput.getLastFrameNo() > rmsdGromacsUserInput.getFirstFrameno()) {
+	        	 cmd.append(" -b ").append(rmsdGromacsUserInput.getFirstFrameno());
+	        	 cmd.append(" -e ").append(rmsdGromacsUserInput.getLastFrameNo());
+	        }
+	        
+	        
 	        if (isNotEmpty(rmsdGromacsUserInput.getIndexFileName())) {
 	            cmd.append(" -n ").append(inputDirPath).append("/").append(rmsdGromacsUserInput.getIndexFileName());
 	        }
 	        
-	        // Output file (mandatory)
-	        cmd.append(" -o ").append(outputDirPath).append("/gromacs/rmsd/")
-	           .append(rmsdGromacsUserInput.getOutputfileName()).append(".xvg");
-	        
-	        // Optional: First frame (only if provided and valid)
-	        if (isValidFrame(rmsdGromacsUserInput.getFirstFrameno())) {
-	            cmd.append(" -b ").append(rmsdGromacsUserInput.getFirstFrameno());
-	        }
-	        
-	        // Optional: Last frame (only if provided and valid)
-	        if (isValidFrame(rmsdGromacsUserInput.getLastFrameNo())) {
-	            cmd.append(" -e ").append(rmsdGromacsUserInput.getLastFrameNo());
-	        }
-	        
-	        // Optional: Interactive group selections (only if groups are provided)
 	        boolean hasGroups = isValidGroup(rmsdGromacsUserInput.getGrouplsfit()) 
 	                         || isValidGroup(rmsdGromacsUserInput.getGroupRMSD());
 	        
@@ -119,10 +108,9 @@ public class RmsdGromacsAnalysisServiceImpl implements IRmsdGromacsAnalysisServi
 	        buffer.append(cmd.toString());
 	    }
 	    
-	    // Execute script
 	    try {
 	        List<String> command1 = new ArrayList<>();
-	        command1.add("/bin/bash");
+	        command1.add("/bin/bash"); 
 	        command1.add(gromacsrmsdScriptPath);
 	        
 	        ProcessBuilder processBuilder = new ProcessBuilder(command1);
@@ -133,18 +121,11 @@ public class RmsdGromacsAnalysisServiceImpl implements IRmsdGromacsAnalysisServi
 	        Process process = processBuilder.start();
 	        int exitCode = process.waitFor();
 	        
-	        System.out.println("RMSD Command exited with code: " + exitCode);
-	        
-	        if (exitCode != 0) {
-	            System.err.println("RMSD script failed. Check output file: " + outputFile.getAbsolutePath());
-	        }
+	        System.out.println("Command exited with code: " + exitCode);
 	    } catch (Exception e) {
 	        e.printStackTrace();
 	    }
 	    
-	    // Read results
-	    String xvgFilePath = outputDirPath + "/gromacs/rmsd/" + rmsdGromacsUserInput.getOutputfileName() + ".xvg";
-	    
-	    return ixvgGraphReader.xvgReader(xvgFilePath);
-	}
+	    return ixvgGraphReader.xvgReader(outputDirPath + "/gromacs/rmsd/" + rmsdGromacsUserInput.getOutputfileName() + ".xvg");
+	}	
 }

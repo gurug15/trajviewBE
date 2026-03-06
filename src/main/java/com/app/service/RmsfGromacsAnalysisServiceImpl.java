@@ -87,7 +87,7 @@ public class RmsfGromacsAnalysisServiceImpl implements IRmsfGromacsAnalysisServi
 	        }
 	        
 	        // Optional: Last frame
-	        if (isValidValue(rmsfGromacsUserInput.getLastFrameNo())) {
+	        if (isValidValue(rmsfGromacsUserInput.getLastFrameNo()) && rmsfGromacsUserInput.getLastFrameNo() > 0) {
 	            cmd.append(" -e ").append(rmsfGromacsUserInput.getLastFrameNo());
 	        }
 	        

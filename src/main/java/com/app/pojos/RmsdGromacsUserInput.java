@@ -20,7 +20,7 @@ public class RmsdGromacsUserInput {
 	private String outputfileName;
 	private int grouplsfit;
 	private int groupRMSD;
-	@Min(value = 1, message = "first Frame number must have > 1")
+//	@Min(value = 0, message = "first Frame number must have > 1")
 	private int firstFrameno;
 	private int lastFrameNo;
 }

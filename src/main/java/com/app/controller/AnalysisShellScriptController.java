@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import javax.annotation.security.PermitAll;
+
 import com.app.dto.TrajectoryFrameInput;
 import com.app.pojos.GyrateGromacsUserInput;
 import com.app.service.IGyrateGromacsAnalysisService;
@@ -52,9 +54,8 @@ public class AnalysisShellScriptController {
 	public ResponseEntity<?> structureFromFrame(@RequestBody @Valid TrajectoryFrameInput input, Principal principal) {
 		try {
 			// Use the authenticated user's email if userName not provided in body
-			if (input.getUserName() == null || input.getUserName().isBlank()) {
 				input.setUserName(principal.getName());
-			}
+			
 			String outputFileName = structureFromFrameService.extractPdbFromFrame(input);
 			return ResponseEntity.ok(Map.of("outputFileName", outputFileName));
 		} catch (Exception e) {

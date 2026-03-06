@@ -41,6 +41,7 @@ public class SecurityConfig {
 						.requestMatchers("/auth/create-user").permitAll()
 						.requestMatchers(HttpMethod.GET, "/fileUpload/files/**").permitAll()
 						.requestMatchers(HttpMethod.GET, "/analysis/download/**").permitAll()
+//					    .requestMatchers("/analysis/structurefromframe").permitAll() 
 						.requestMatchers("/api/**").permitAll().anyRequest().authenticated())
 				.exceptionHandling(ex -> ex.authenticationEntryPoint(point))
 				.sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

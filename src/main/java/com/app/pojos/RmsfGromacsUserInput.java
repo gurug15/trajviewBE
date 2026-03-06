@@ -19,7 +19,7 @@ public class RmsfGromacsUserInput {
 //	@NotBlank(message = "Index fileName can't be blank")
 	private String indexFileName;
 	private int grouplsfit;
-	@Min(value = 1, message = "first Frame number must have > 1")
+//	@Min(value = 1, message = "first Frame number must have > 1")
 	private int firstFrameno;
 	private int lastFrameNo;
 	private boolean superimpose;

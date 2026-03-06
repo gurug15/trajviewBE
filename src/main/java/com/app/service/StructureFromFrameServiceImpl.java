@@ -35,6 +35,7 @@ public class StructureFromFrameServiceImpl implements IStructureFromFrameService
 
     @Override
     public String extractPdbFromFrame(TrajectoryFrameInput input) throws IOException {
+    	System.out.println("user name ---- -------------------------------------------------------------\n\n"+ input.toString());
         User user = userRepository.findByEmail(input.getUserName())
                 .orElseThrow(() -> new RuntimeException("User not found: " + input.getUserName()));
 
@@ -49,7 +50,7 @@ public class StructureFromFrameServiceImpl implements IStructureFromFrameService
         }
 
         // Generate unique output filename to prevent collisions
-        String outputFileName = "frame_" + input.getFrameNumber() + "_" + UUID.randomUUID().toString().substring(0, 8)
+        String outputFileName = "frame_" + input.getPicoSecNumber() + "_" + UUID.randomUUID().toString().substring(0, 8)
                 + ".pdb";
         Path outputFilePath = pdbOutputDir.resolve(outputFileName);
 
@@ -64,7 +65,7 @@ public class StructureFromFrameServiceImpl implements IStructureFromFrameService
                     + " -f " + inputDirPath + "/" + input.getTrajectoryFileName()
                     + " -s " + inputDirPath + "/" + input.getTopologyFileName()
                     + " -o " + outputFilePath
-                    + " -dump " + input.getFrameNumber());
+                    + " -dump " + input.getPicoSecNumber());
         }
 
         // Execute the shell script

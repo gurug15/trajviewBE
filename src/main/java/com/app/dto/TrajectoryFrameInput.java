@@ -15,7 +15,7 @@ public class TrajectoryFrameInput {
     @NotBlank(message = "trajectory fileName can't be blank")
     private String trajectoryFileName;
     @Min(value = 0, message = "frame number must be >= 0")
-    private int frameNumber;
-    @NotBlank(message = "userName can't be blank")
+    private int picoSecNumber;
+//    @NotBlank(message = "userName can't be blank")
     private String userName;
 }
