@@ -46,6 +46,7 @@ public class UserServiceImpl implements IUserService {
 				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/gromacs/rmsd"));
 				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/gromacs/rmsf"));
 				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/gromacs/gyrate"));
+				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/gromacs/pca"));
 
 				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/amber"));
 				Files.createDirectory(Paths.get("analysis/" + u.getEmail() + "/amber/inputfiles"));

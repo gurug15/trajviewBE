@@ -8,9 +8,12 @@ import java.util.Map;
 
 import javax.annotation.security.PermitAll;
 
+import com.app.dto.PCAGraphData;
 import com.app.dto.TrajectoryFrameInput;
 import com.app.pojos.GyrateGromacsUserInput;
+import com.app.pojos.PCAGromacsUserInput;
 import com.app.service.IGyrateGromacsAnalysisService;
+import com.app.service.IPCAGromacsAnalysisService;
 import com.app.service.IStructureFromFrameService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -39,6 +42,10 @@ public class AnalysisShellScriptController {
 	IRmsfGromacsAnalysisService rmsfGromacs;
 	@Autowired
 	IGyrateGromacsAnalysisService gyrateGromacs;
+	
+	@Autowired
+	IPCAGromacsAnalysisService pcaGromacs;
+	
 	@Autowired
 	IStructureFromFrameService structureFromFrameService;
 
@@ -185,6 +192,22 @@ public class AnalysisShellScriptController {
 		for (int i = 0; i < gyrateGromacsUserInput.length; i++) {
 			graphArray.add(gyrateGromacs.writeGyrateAnalysisScript(gyrateGromacsUserInput[i], principal.getName(), i));
 			System.out.println("user input[" + i + "] ::" + gyrateGromacsUserInput[i].toString());
+		}
+		return new ResponseEntity<>(graphArray, HttpStatus.OK);
+	}
+	
+	@PostMapping("/pca")
+	public ResponseEntity<?> pcaGromacs(
+			@RequestBody @Valid PCAGromacsUserInput[] pcaInputArray,
+			Principal principal)
+			throws IOException, Exception {
+		System.out.println("pcaGromacsUserInput[0]::" + pcaInputArray[0]);
+
+		java.util.List<PCAGraphData> graphArray = new java.util.ArrayList<>();
+		System.out.println("analysis size::" + pcaInputArray.length);
+		for (int i = 0; i < pcaInputArray.length; i++) {
+			graphArray.add(pcaGromacs.getPcaGraphData(pcaInputArray[i], principal.getName(), i));
+			System.out.println("user input[" + i + "] ::" + pcaInputArray[i].toString());
 		}
 		return new ResponseEntity<>(graphArray, HttpStatus.OK);
 	}
